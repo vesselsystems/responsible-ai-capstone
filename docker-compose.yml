@@ -1,8 +1,15 @@
 services:
   capstone:
-    build: .
+    build:
+      context: .
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      - "127.0.0.1:8000:8000"
+    environment:
+      # The image contains these directories outside the installed Python package.
+      CAPSTONE_CORPUS_DIR: /service/data/documents
+      CAPSTONE_STATIC_DIR: /service/app/static
+      # Optional provider settings. Compose does not require a local .env file.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
     restart: unless-stopped

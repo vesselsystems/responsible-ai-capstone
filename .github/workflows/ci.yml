@@ -7,14 +7,30 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Install project
         run: python -m pip install -e ".[dev]"
       - name: Run tests
         run: pytest
       - name: Lint
         run: ruff check .
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container
+        run: docker build --tag responsible-ai-capstone:ci .
+      - name: Start and smoke test container
+        run: |
+          docker run --detach --name responsible-ai-capstone-ci \
+            --publish 127.0.0.1:8000:8000 responsible-ai-capstone:ci
+          trap 'docker rm --force responsible-ai-capstone-ci' EXIT
+          curl --fail --retry 10 --retry-delay 1 http://127.0.0.1:8000/ready

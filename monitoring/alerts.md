@@ -1,18 +1,21 @@
-# Monitoring starter
+# Monitoring starter for the local prototype
 
-The service exposes these Prometheus-compatible signals:
+`GET /metrics` exposes Prometheus-compatible text generated from counters held in the current Python process:
 
-- `capstone_requests_total`
-- `capstone_errors_total`
-- `capstone_no_evidence_total`
-- `capstone_llm_fallbacks_total`
-- `capstone_request_latency_ms_average`
+- `capstone_requests_total` — accepted `/ask` requests that reached the service function;
+- `capstone_errors_total` — `/ask` requests that crossed the defensive HTTP boundary with an internal exception;
+- `capstone_no_evidence_total` — requests for which retrieval returned no chunks;
+- `capstone_llm_fallbacks_total` — configured provider attempts that fell back to evidence-only mode;
+- `capstone_request_latency_ms_average` — average in-process `/ask` latency for recorded requests.
 
-Starter review thresholds for a demo environment:
+Provider fallback is intentionally not counted as an internal error: it is the safe, expected response to provider/network failure or malformed/untrusted provider output. Validation errors rejected by FastAPI do not reach the service function.
 
-- investigate any increase in `capstone_errors_total`;
-- investigate a sustained rise in no-evidence responses after a corpus or code change;
-- investigate repeated LLM fallbacks before enabling the external provider;
-- set a latency SLO only after collecting a representative baseline.
+## What can be reviewed locally
 
-These are review signals, not production alert policy. Add authentication, durable metrics, rate limiting, and a managed secret store before exposing a consequential service.
+For a local demo, inspect `/metrics` after representative manual or test requests. Review changes in no-evidence responses, provider fallbacks, internal errors, and latency while comparing them with the corpus/code change that preceded them. The repository's current corpus is small and no traffic baseline or held-out evaluation set is included, so there is no defensible SLO or alert threshold here.
+
+The counters reset on process/container restart. `/metrics` is an exposition endpoint only; this project does not include Prometheus storage, a dashboard, an alert manager, logs with retention, traces, or notification routing. Therefore these are review signals, not evidence of production observability.
+
+## Before a real deployment
+
+An environment owner would need to choose and document thresholds using measured traffic and evaluation data, then add durable collection and alerting. At minimum, that design should cover availability/readiness, request errors, latency distributions rather than only an average, no-evidence and retrieval-quality regressions, provider failure rate, resource saturation, corpus/index version, audit-safe logs, and escalation/notification ownership. It would also need authentication, rate limiting, secret management, retention rules, and a tested response process.

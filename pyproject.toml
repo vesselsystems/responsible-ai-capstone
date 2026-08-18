@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "responsible-ai-capstone"
 version = "0.1.0"
-description = "A monitored, citation-grounded AI capstone API with a simple front end."
+description = "A local citation-grounded AI prototype with in-process metrics and a simple front end."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

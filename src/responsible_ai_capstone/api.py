@@ -1,7 +1,8 @@
-"""FastAPI entry point for the deployed capstone."""
+"""FastAPI entry point for the local responsible-AI prototype."""
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -9,15 +10,35 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .index import EvidenceIndex
 from .metrics import Metrics
 from .service import CapstoneService
 
-ROOT = Path(__file__).resolve().parents[2]
-CORPUS_DIR = ROOT / "data" / "documents"
-STATIC_DIR = ROOT / "app" / "static"
+SOURCE_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _configured_path(variable: str, relative_path: str) -> Path:
+    """Resolve a runtime directory without assuming where the package was installed.
+
+    A wheel contains Python code, while this prototype keeps its corpus and browser
+    assets beside the service.  Docker sets these variables explicitly; the source
+    checkout remains convenient when the variables are unset.
+    """
+
+    configured = os.getenv(variable, "").strip()
+    if configured:
+        return Path(configured).expanduser()
+
+    checkout_path = SOURCE_ROOT / relative_path
+    if checkout_path.exists():
+        return checkout_path
+    return Path.cwd() / relative_path
+
+
+CORPUS_DIR = _configured_path("CAPSTONE_CORPUS_DIR", "data/documents")
+STATIC_DIR = _configured_path("CAPSTONE_STATIC_DIR", "app/static")
 
 metrics = Metrics()
 index = EvidenceIndex(CORPUS_DIR)
@@ -25,7 +46,7 @@ service = CapstoneService(index, metrics)
 app = FastAPI(
     title="Responsible AI Evidence Assistant",
     version="0.1.0",
-    description="A citation-grounded, monitored capstone service.",
+    description="A citation-grounded local prototype with in-process metrics.",
 )
 
 
@@ -33,11 +54,20 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2_000)
     top_k: int = Field(default=3, ge=1, le=5)
 
+    @field_validator("question")
+    @classmethod
+    def question_must_contain_text(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("question must contain at least 3 non-whitespace characters")
+        return value
+
 
 class EvidenceResponse(BaseModel):
     citation: str
     source: str
     score: float
+    text: str
 
 
 class AskResponse(BaseModel):
@@ -77,6 +107,7 @@ def ask(request: AskRequest) -> AskResponse:
                 citation=item.citation,
                 source=item.source,
                 score=round(item.score, 6),
+                text=item.text,
             )
             for item in result.evidence
         ],
