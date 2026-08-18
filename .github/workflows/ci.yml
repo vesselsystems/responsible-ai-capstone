@@ -33,4 +33,11 @@ jobs:
           docker run --detach --name responsible-ai-capstone-ci \
             --publish 127.0.0.1:8000:8000 responsible-ai-capstone:ci
           trap 'docker rm --force responsible-ai-capstone-ci' EXIT
-          curl --fail --retry 10 --retry-delay 1 http://127.0.0.1:8000/ready
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/ready; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs responsible-ai-capstone-ci
+          exit 1
