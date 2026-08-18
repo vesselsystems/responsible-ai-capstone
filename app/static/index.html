@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Responsible AI Evidence Assistant</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #172033; }
+    textarea { width: 100%; min-height: 110px; padding: .75rem; font: inherit; }
+    button { margin-top: .75rem; padding: .65rem 1rem; cursor: pointer; }
+    #answer, .evidence { margin-top: 1rem; padding: 1rem; background: #f3f6fb; border-radius: 8px; white-space: pre-wrap; }
+    .muted { color: #526070; }
+    .citation { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Responsible AI Evidence Assistant</h1>
+  <p class="muted">Ask about the indexed demo governance documents. Answers are evidence-only unless an approved LLM endpoint is configured.</p>
+  <label for="question">Question</label>
+  <textarea id="question" placeholder="What belongs in an approval record?"></textarea>
+  <button id="ask">Ask</button>
+  <p id="status" class="muted"></p>
+  <h2>Answer</h2>
+  <div id="answer">No question asked yet.</div>
+  <h2>Evidence</h2>
+  <div id="evidence" class="evidence">Retrieved citations will appear here.</div>
+  <script>
+    const question = document.getElementById('question');
+    const ask = document.getElementById('ask');
+    const status = document.getElementById('status');
+    const answer = document.getElementById('answer');
+    const evidence = document.getElementById('evidence');
+    ask.addEventListener('click', async () => {
+      const value = question.value.trim();
+      if (value.length < 3) { status.textContent = 'Enter at least 3 characters.'; return; }
+      status.textContent = 'Retrieving evidence…';
+      ask.disabled = true;
+      try {
+        const response = await fetch('/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question: value, top_k: 3})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Request failed');
+        answer.textContent = `${data.answer}\n\nMode: ${data.mode}\nRequest: ${data.request_id}\nLatency: ${data.latency_ms} ms`;
+        evidence.innerHTML = data.evidence.length
+          ? data.evidence.map(item => `<div><span class="citation">${item.citation}</span> — ${item.source} (score ${item.score})</div>`).join('')
+          : 'No matching evidence.';
+        status.textContent = 'Complete.';
+      } catch (error) {
+        status.textContent = error.message;
+      } finally { ask.disabled = false; }
+    });
+  </script>
+</body>
+</html>
