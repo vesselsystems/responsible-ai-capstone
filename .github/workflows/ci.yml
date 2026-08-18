@@ -27,17 +27,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build container
-        run: docker build --tag responsible-ai-capstone:ci .
+        run: docker build --pull --tag responsible-ai-capstone:ci .
       - name: Start and smoke test container
+        shell: bash
         run: |
-          docker run --detach --name responsible-ai-capstone-ci \
+          set -euo pipefail
+          container_name=responsible-ai-capstone-ci
+          cleanup() { docker rm --force "$container_name" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container_name" \
             --publish 127.0.0.1:8000:8000 responsible-ai-capstone:ci
-          trap 'docker rm --force responsible-ai-capstone-ci' EXIT
+          test "$(docker inspect --format '{{.Config.User}}' "$container_name")" = "app"
+
+          ready_body=
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8000/ready; then
-              exit 0
+            if ready_body="$(curl --fail --silent --show-error http://127.0.0.1:8000/ready)"; then
+              break
             fi
             sleep 1
           done
-          docker logs responsible-ai-capstone-ci
+          if [[ -z "$ready_body" ]]; then
+            docker logs "$container_name"
+            exit 1
+          fi
+          printf '%s' "$ready_body" | python -c \
+            'import json, sys; assert json.load(sys.stdin)["ready"] is True'
+
+          health_body="$(curl --fail --silent --show-error http://127.0.0.1:8000/health)"
+          printf '%s' "$health_body" | python -c \
+            'import json, sys; payload = json.load(sys.stdin); assert payload["status"] == "ok" and payload["chunks"] > 0'
+
+          ask_body="$(curl --fail --silent --show-error --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"question":"What belongs in an approval record?","top_k":1}' \
+            http://127.0.0.1:8000/ask)"
+          printf '%s' "$ask_body" | python -c \
+            'import json, sys; payload = json.load(sys.stdin); assert payload["mode"] == "evidence-only" and payload["evidence"] and payload["evidence"][0]["snippet"]'
+
+          for attempt in $(seq 1 30); do
+            health_status="$(docker inspect --format '{{.State.Health.Status}}' "$container_name")"
+            if [[ "$health_status" == healthy ]]; then
+              exit 0
+            fi
+            if [[ "$health_status" == unhealthy ]]; then
+              docker logs "$container_name"
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs "$container_name"
           exit 1

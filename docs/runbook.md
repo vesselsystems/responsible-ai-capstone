@@ -15,15 +15,18 @@ uvicorn responsible_ai_capstone.api:app --host 127.0.0.1 --port 8000
 docker compose up --build
 ```
 
-Compose does not require `.env`. The optional provider variables are empty by default, and the published port is bound to `127.0.0.1` for local use. Verify a running process with:
+Compose does not require `.env`. The optional provider variables are empty by default, and the published port is bound to `127.0.0.1` for local use. The image healthcheck calls `/ready`; the Compose service is non-root, read-only, capability-dropped, and has no automatic restart policy. Verify a running process with:
 
 ```bash
 curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/ready
 curl -i http://127.0.0.1:8000/metrics
+curl -i -X POST http://127.0.0.1:8000/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"What belongs in an approval record?","top_k":1}'
 ```
 
-Expected local behavior is HTTP 200, a nonzero chunk count, `{"ready":true}`, and Prometheus text. `/metrics` is process-local and resets when the process/container restarts.
+Expected local behavior is HTTP 200, a nonzero chunk count, `{"ready":true}`, Prometheus text, and an `/ask` response with an evidence contract, citation, snippet, and source metadata. `/metrics` is process-local and resets when the process/container restarts.
 
 ## Request troubleshooting
 
@@ -31,7 +34,7 @@ Expected local behavior is HTTP 200, a nonzero chunk count, `{"ready":true}`, an
 2. If `/ready` is false or startup fails, check that `CAPSTONE_CORPUS_DIR` exists and contains readable `.md` files. In the image it should be `/service/data/documents`.
 3. If `/` fails, check `CAPSTONE_STATIC_DIR` and `index.html`. In the image it should be `/service/app/static`.
 4. If a question has no matches, confirm the corpus contents and query wording. The expected response is an explicit no-evidence result, not a guessed answer.
-5. If an optional provider fails, returns invalid JSON/shape/content, or cites a non-retrieved source, the expected mode is `evidence-only`. Check `capstone_llm_fallbacks_total`; do not disable the safe fallback to force a fluent answer.
+5. If an optional provider fails, returns invalid JSON/shape/content, or cites a non-retrieved source, the expected mode is `evidence-only` with `fallback: true`. Check `capstone_llm_fallbacks_total`; do not disable the safe fallback to force a fluent answer.
 6. If an internal exception still produces HTTP 500, use the request ID and server logs for diagnosis. The API intentionally returns a generic error detail and does not return provider exception text.
 
 ## Local rollback and data changes

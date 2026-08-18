@@ -43,10 +43,16 @@
         const citation = document.createElement('span');
         citation.className = 'citation';
         citation.textContent = item.citation;
-        row.append(citation, document.createTextNode(` — ${item.source} (score ${item.score})`));
-        if (item.text) {
+        const metadata = item.source_metadata || {};
+        const source = metadata.source || item.source;
+        const chunkId = metadata.chunk_id || item.chunk_id;
+        row.append(
+          citation,
+          document.createTextNode(` — ${source}#${chunkId} (score ${item.score})`),
+        );
+        if (item.snippet || item.text) {
           const excerpt = document.createElement('p');
-          excerpt.textContent = item.text;
+          excerpt.textContent = item.snippet || item.text;
           row.append(excerpt);
         }
         evidence.append(row);
@@ -66,7 +72,15 @@
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || 'Request failed');
-        answer.textContent = `${data.answer}\n\nMode: ${data.mode}\nRequest: ${data.request_id}\nLatency: ${data.latency_ms} ms`;
+        answer.textContent = [
+          data.answer,
+          '',
+          `Mode: ${data.mode}`,
+          `Fallback: ${data.fallback}`,
+          `Evidence contract: ${data.evidence_contract}`,
+          `Request: ${data.request_id}`,
+          `Latency: ${data.latency_ms} ms`,
+        ].join('\n');
         renderEvidence(data.evidence);
         status.textContent = 'Complete.';
       } catch (error) {

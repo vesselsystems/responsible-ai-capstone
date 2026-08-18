@@ -1,0 +1,44 @@
+[
+  {
+    "id": "dev-01",
+    "question": "What should a responsible AI service define before use?",
+    "answerable": true,
+    "expected_source": "capstone_governance.md",
+    "expected_citation": "[capstone_governance.md#0]"
+  },
+  {
+    "id": "dev-02",
+    "question": "How should sensitive data and secrets be handled?",
+    "answerable": true,
+    "expected_source": "capstone_governance.md",
+    "expected_citation": "[capstone_governance.md#0]"
+  },
+  {
+    "id": "held-out-01",
+    "question": "What should a release review check?",
+    "answerable": true,
+    "expected_source": "capstone_governance.md",
+    "expected_citation": "[capstone_governance.md#0]"
+  },
+  {
+    "id": "held-out-02",
+    "question": "What information belongs in an incident record?",
+    "answerable": true,
+    "expected_source": "capstone_incident_response.md",
+    "expected_citation": "[capstone_incident_response.md#0]"
+  },
+  {
+    "id": "held-out-03",
+    "question": "What is the reimbursement limit for international travel?",
+    "answerable": false,
+    "expected_source": null,
+    "expected_citation": null
+  },
+  {
+    "id": "held-out-04",
+    "question": "Which tax form is required for contractor payments?",
+    "answerable": false,
+    "expected_source": null,
+    "expected_citation": null
+  }
+]

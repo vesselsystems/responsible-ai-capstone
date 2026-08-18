@@ -1,0 +1,135 @@
+{
+  "corpus": {
+    "path": "data/documents",
+    "index": "deterministic TF-IDF",
+    "chunk_count": 2
+  },
+  "metrics": {
+    "questions": 6.0,
+    "answerable_questions": 4.0,
+    "unanswerable_questions": 2.0,
+    "source_hit_at_k": 1.0,
+    "mean_reciprocal_rank": 1.0,
+    "source_precision_at_k": 0.75,
+    "unanswerable_no_evidence_rate": 1.0,
+    "case_pass_rate": 1.0
+  },
+  "rows": [
+    {
+      "id": "dev-01",
+      "question": "What should a responsible AI service define before use?",
+      "answerable": true,
+      "expected_source": "capstone_governance.md",
+      "expected_citation": "[capstone_governance.md#0]",
+      "retrieved_sources": [
+        "capstone_governance.md"
+      ],
+      "retrieved_citations": [
+        "[capstone_governance.md#0]"
+      ],
+      "retrieved_count": 1,
+      "source_hit_at_k": true,
+      "citation_hit_at_k": true,
+      "source_rank": 1,
+      "citation_rank": 1,
+      "no_evidence": false,
+      "passed": true
+    },
+    {
+      "id": "dev-02",
+      "question": "How should sensitive data and secrets be handled?",
+      "answerable": true,
+      "expected_source": "capstone_governance.md",
+      "expected_citation": "[capstone_governance.md#0]",
+      "retrieved_sources": [
+        "capstone_governance.md",
+        "capstone_incident_response.md"
+      ],
+      "retrieved_citations": [
+        "[capstone_governance.md#0]",
+        "[capstone_incident_response.md#0]"
+      ],
+      "retrieved_count": 2,
+      "source_hit_at_k": true,
+      "citation_hit_at_k": true,
+      "source_rank": 1,
+      "citation_rank": 1,
+      "no_evidence": false,
+      "passed": true
+    },
+    {
+      "id": "held-out-01",
+      "question": "What should a release review check?",
+      "answerable": true,
+      "expected_source": "capstone_governance.md",
+      "expected_citation": "[capstone_governance.md#0]",
+      "retrieved_sources": [
+        "capstone_governance.md",
+        "capstone_incident_response.md"
+      ],
+      "retrieved_citations": [
+        "[capstone_governance.md#0]",
+        "[capstone_incident_response.md#0]"
+      ],
+      "retrieved_count": 2,
+      "source_hit_at_k": true,
+      "citation_hit_at_k": true,
+      "source_rank": 1,
+      "citation_rank": 1,
+      "no_evidence": false,
+      "passed": true
+    },
+    {
+      "id": "held-out-02",
+      "question": "What information belongs in an incident record?",
+      "answerable": true,
+      "expected_source": "capstone_incident_response.md",
+      "expected_citation": "[capstone_incident_response.md#0]",
+      "retrieved_sources": [
+        "capstone_incident_response.md"
+      ],
+      "retrieved_citations": [
+        "[capstone_incident_response.md#0]"
+      ],
+      "retrieved_count": 1,
+      "source_hit_at_k": true,
+      "citation_hit_at_k": true,
+      "source_rank": 1,
+      "citation_rank": 1,
+      "no_evidence": false,
+      "passed": true
+    },
+    {
+      "id": "held-out-03",
+      "question": "What is the reimbursement limit for international travel?",
+      "answerable": false,
+      "expected_source": null,
+      "expected_citation": null,
+      "retrieved_sources": [],
+      "retrieved_citations": [],
+      "retrieved_count": 0,
+      "source_hit_at_k": null,
+      "citation_hit_at_k": null,
+      "source_rank": null,
+      "citation_rank": null,
+      "no_evidence": true,
+      "passed": true
+    },
+    {
+      "id": "held-out-04",
+      "question": "Which tax form is required for contractor payments?",
+      "answerable": false,
+      "expected_source": null,
+      "expected_citation": null,
+      "retrieved_sources": [],
+      "retrieved_citations": [],
+      "retrieved_count": 0,
+      "source_hit_at_k": null,
+      "citation_hit_at_k": null,
+      "source_rank": null,
+      "citation_rank": null,
+      "no_evidence": true,
+      "passed": true
+    }
+  ]
+}

@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+SNIPPET_MAX_CHARS = 700
+
 
 @dataclass(frozen=True)
 class Evidence:
@@ -19,6 +21,12 @@ class Evidence:
     @property
     def citation(self) -> str:
         return f"[{self.source}#{self.chunk_id}]"
+
+    @property
+    def snippet(self) -> str:
+        """Return a bounded, verbatim preview of the retrieved chunk."""
+
+        return self.text[:SNIPPET_MAX_CHARS].strip()
 
 
 class EvidenceIndex:
@@ -43,7 +51,8 @@ class EvidenceIndex:
             return []
         query = self.vectorizer.transform([question])
         scores = (self.matrix @ query.T).toarray().ravel()
-        indices = np.argsort(-scores)[:top_k]
+        # Stable ordering makes equal-score results reproducible for reviewers.
+        indices = np.argsort(-scores, kind="stable")[:top_k]
         return [
             Evidence(*self.chunks[index], float(scores[index]))
             for index in indices

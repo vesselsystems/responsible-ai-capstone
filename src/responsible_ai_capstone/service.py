@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+import unicodedata
 from dataclasses import dataclass
 from urllib.request import Request, urlopen
 
@@ -13,7 +14,26 @@ from .index import Evidence, EvidenceIndex
 from .metrics import Metrics
 
 NO_EVIDENCE = "I could not find supporting evidence in the indexed documents."
-_CITATION_PATTERN = re.compile(r"\[[^]]*#[^]]*\]")
+MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
+_CITATION_PATTERN = re.compile(r"\[[^\[\]\r\n]+#[^\[\]\r\n]+\]")
+_INSTRUCTION_LIKE_OUTPUT = re.compile(
+    r"\b(?:ignore|disregard|override)\s+(?:all\s+)?(?:the\s+)?"
+    r"(?:previous|prior|earlier|system|developer|these)\s+instructions\b|"
+    r"\b(?:reveal|exfiltrate|leak)\s+(?:the\s+)?"
+    r"(?:system|developer|hidden|secret(?:s)?|api)\b|"
+    r"\b(?:system prompt|developer message|hidden instructions)\b",
+    re.IGNORECASE,
+)
+
+
+def _safe_plain_text(value: str) -> str:
+    """Remove control and bidi characters before accepting provider text."""
+    safe: list[str] = []
+    for character in value.replace("\\r\\n", "\\n").replace("\\r", "\\n"):
+        category = unicodedata.category(character)
+        if character in "\\n\\t" or category[0] != "C":
+            safe.append(character)
+    return "".join(safe)
 
 
 class ProviderError(RuntimeError):
@@ -26,6 +46,7 @@ class AnswerResult:
     mode: str
     evidence: list[Evidence]
     latency_ms: float
+    fallback: bool = False
 
 
 class CapstoneService:
@@ -37,10 +58,7 @@ class CapstoneService:
     def _evidence_draft(evidence: list[Evidence]) -> str:
         if not evidence:
             return NO_EVIDENCE
-        bullets = [
-            f"- {item.text[:700].strip()} {item.citation}"
-            for item in evidence[:2]
-        ]
+        bullets = [f"- {item.snippet} {item.citation}" for item in evidence[:2]]
         return "Evidence found in the indexed corpus:\n\n" + "\n".join(bullets)
 
     @staticmethod
@@ -63,6 +81,10 @@ class CapstoneService:
             raise ProviderError("LLM response did not contain text")
 
         cleaned = answer.strip()
+        if _safe_plain_text(cleaned).strip() != cleaned:
+            raise ProviderError("LLM response contained control characters")
+        if _INSTRUCTION_LIKE_OUTPUT.search(cleaned):
+            raise ProviderError("LLM response contained instruction-like output")
         citations = set(_CITATION_PATTERN.findall(cleaned))
         allowed = {item.citation for item in evidence}
         if not citations:
@@ -70,6 +92,11 @@ class CapstoneService:
         unsupported = citations - allowed
         if unsupported:
             raise ProviderError("LLM response cited evidence that was not retrieved")
+        # A citation by itself is not an answer.  Require some provider text
+        # beyond citation tokens so the accepted mode remains inspectable.
+        substantive_text = _CITATION_PATTERN.sub("", cleaned).strip(" \t\r\n.,;:-")
+        if not substantive_text:
+            raise ProviderError("LLM response did not contain substantive text")
         return cleaned
 
     def _llm_answer(self, question: str, evidence: list[Evidence]) -> str:
@@ -79,7 +106,10 @@ class CapstoneService:
             raise ProviderError("LLM configuration is not present")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
         context = "\n\n".join(
-            f"Source {item.citation}:\n{item.text}" for item in evidence
+            "--- BEGIN UNTRUSTED RETRIEVED DOCUMENT ---\n"
+            f"Citation: {item.citation}\n{item.text}\n"
+            "--- END UNTRUSTED RETRIEVED DOCUMENT ---"
+            for item in evidence
         )
         payload = json.dumps(
             {
@@ -109,7 +139,10 @@ class CapstoneService:
         )
         try:
             with urlopen(request, timeout=45) as response:  # noqa: S310 - configurable endpoint
-                body = json.loads(response.read().decode("utf-8"))
+                raw_body = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+                if len(raw_body) > MAX_PROVIDER_RESPONSE_BYTES:
+                    raise ProviderError("LLM response exceeded the configured size limit")
+                body = json.loads(raw_body.decode("utf-8"))
         except Exception as error:  # provider/network/decoding errors are safe fallbacks
             raise ProviderError("LLM endpoint unavailable or returned invalid JSON") from error
 
@@ -130,8 +163,13 @@ class CapstoneService:
             answer = NO_EVIDENCE
             mode = "evidence-only"
             fallback = False
+        elif not self._provider_configured():
+            # The default path never calls a remote endpoint.  It is deterministic
+            # evidence-only mode, not a provider failure.
+            answer = self._evidence_draft(evidence)
+            mode = "evidence-only"
+            fallback = False
         else:
-            provider_configured = self._provider_configured()
             try:
                 answer = self._llm_answer(question, evidence)
                 # Keep this check even though the normal provider path validates
@@ -142,7 +180,7 @@ class CapstoneService:
             except Exception:  # a provider failure must never become an ungrounded answer
                 answer = self._evidence_draft(evidence)
                 mode = "evidence-only"
-                fallback = provider_configured
+                fallback = True
 
         latency_ms = (time.perf_counter() - started) * 1_000
         self.metrics.record(
@@ -150,4 +188,4 @@ class CapstoneService:
             no_evidence=not evidence,
             llm_fallback=fallback,
         )
-        return AnswerResult(answer, mode, evidence, latency_ms)
+        return AnswerResult(answer, mode, evidence, latency_ms, fallback)
