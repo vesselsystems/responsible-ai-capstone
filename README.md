@@ -77,7 +77,7 @@ python scripts/evaluate_retrieval.py
 python scripts/local_verification.py --output docs/local_verification.md
 ```
 
-The generated [`reports/retrieval_results.json`](reports/retrieval_results.json) records the labeled retrieval run. The latest local verification for this checkout is recorded in [`docs/local_verification.md`](docs/local_verification.md): 2 indexed chunks, a supported evidence-only request with one inspectable citation/snippet, an explicit unknown-question result, invalid-field rejection, and a safe static frontend check. Provider calls in that record were 0.
+The generated [`reports/retrieval_results.json`](reports/retrieval_results.json) records the labeled retrieval run. The latest local verification for this checkout is recorded in [`docs/local_verification.md`](docs/local_verification.md): 2 indexed chunks, a supported evidence-only request with one inspectable citation/snippet and returned latency field, an explicit unknown-question result, invalid-field rejection, and a safe static frontend check. Provider calls in that record were 0; the latency is one in-process observation, not a baseline.
 
 ```text
 pytest -q  -> 16 passed, 1 dependency deprecation warning

@@ -19,10 +19,10 @@ The static browser is intentionally small. It builds evidence rows with DOM APIs
 The measured checks in this checkout are limited to behavior, a small labeled retrieval regression set, and local packaging hygiene. The generated [`local_verification.md`](local_verification.md) record captures an in-process run with provider variables cleared:
 
 - `/health`: HTTP 200 with 2 indexed chunks; `/ready`: HTTP 200 with `ready=True`.
-- A supported question: HTTP 200, `evidence-only`, `fallback=False`, one evidence item, citation `[capstone_incident_response.md#0]`, and a 700-character snippet.
+- A supported question: HTTP 200, `evidence-only`, `fallback=False`, one evidence item, citation `[capstone_incident_response.md#0]`, a 700-character snippet, and the returned per-request `latency_ms` field (the exact observation is kept in the generated record).
 - An unknown question: HTTP 200 with zero evidence items and the explicit no-evidence answer.
 - An extra request field: HTTP 422. The frontend: HTTP 200 with DOM text APIs and no listed unsafe HTML API.
-- Provider calls in that check: 0. It did not measure an external provider.
+- Provider calls in that check: 0. It did not measure an external provider; the latency value is one in-process local observation, not a representative baseline.
 - `pytest -q`: 16 tests passed; the run emitted one deprecation warning from the installed Starlette/httpx test-client dependency.
 - `ruff check .`: passed.
 

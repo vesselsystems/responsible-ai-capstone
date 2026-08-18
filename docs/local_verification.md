@@ -8,7 +8,7 @@ remote service or measure provider behavior.
 | --- | --- |
 | `/health` | HTTP 200; `2` indexed chunks |
 | `/ready` | HTTP 200; `ready=True` |
-| Supported `/ask` | HTTP 200; mode `evidence-only`; fallback `False` |
+| Supported `/ask` | HTTP 200; mode `evidence-only`; fallback `False`; latency `0.764` ms |
 | Evidence contract | `retrieved-markdown-chunk-v1`; `1` returned item; citation `[capstone_incident_response.md#0]` |
 | Source metadata | `capstone_incident_response.md` chunk `0`; `700`-character snippet |
 | Unknown `/ask` | HTTP 200; `0` evidence items |

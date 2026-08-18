@@ -70,6 +70,7 @@ def collect_observations() -> dict[str, object]:
         "supported_status": supported.status_code,
         "supported_mode": supported_body["mode"],
         "supported_fallback": supported_body["fallback"],
+        "supported_latency_ms": supported_body["latency_ms"],
         "evidence_contract": supported_body["evidence_contract"],
         "evidence_count": len(supported_body["evidence"]),
         "citation": first_evidence["citation"],
@@ -98,7 +99,8 @@ def render_markdown(observations: dict[str, object]) -> str:
         (
             f"| Supported `/ask` | HTTP {observations['supported_status']}; "
             f"mode `{observations['supported_mode']}`; "
-            f"fallback `{observations['supported_fallback']}` |"
+            f"fallback `{observations['supported_fallback']}`; "
+            f"latency `{observations['supported_latency_ms']}` ms |"
         ),
         (
             f"| Evidence contract | `{observations['evidence_contract']}`; "
