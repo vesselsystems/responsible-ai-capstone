@@ -20,8 +20,8 @@ def evaluate_retrieval(
     """Evaluate labeled source/citation retrieval and explicit abstention cases.
 
     This is a small regression set for the capstone's intentionally separate
-    demo corpus.  It measures retrieval only; it does not evaluate provider
-    generation, claim support, or generalization.
+    demo corpus. It measures retrieval only; it does not evaluate provider
+    generation, structural citation validity, semantic claim support, or generalization.
     """
     rows: list[dict[str, Any]] = []
     for item in questions:

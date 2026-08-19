@@ -1,0 +1,119 @@
+# Inert Azure Container Apps configuration for review only.
+# This file does not create a resource, subscription, registry, identity, workspace,
+# or secret. Replace every angle-bracket placeholder only in an approved deployment
+# system, and keep the resulting values outside this repository.
+#
+# stdout/stderr should remain structured and redacted. Configure the managed Container
+# Apps environment's appLogsConfiguration.destination=log-analytics and diagnostic
+# settings to send ContainerAppConsoleLogs and ContainerAppSystemLogs to an approved Log Analytics workspace. Collect application
+# metrics through an approved Azure Monitor/Application Insights or OpenTelemetry
+# pipeline; this template does not create that telemetry plumbing.
+
+name: <container-app-name-placeholder>
+resourceGroup: <resource-group-placeholder>
+location: <azure-region-placeholder>
+type: Microsoft.App/containerApps
+
+identity:
+  type: UserAssigned
+  userAssignedIdentities:
+    "/subscriptions/<subscription-id-placeholder>/resourceGroups/<resource-group-placeholder>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name-placeholder>": {}
+
+properties:
+  managedEnvironmentId: "/subscriptions/<subscription-id-placeholder>/resourceGroups/<resource-group-placeholder>/providers/Microsoft.App/managedEnvironments/<managed-environment-name-placeholder>"
+  configuration:
+    activeRevisionsMode: Multiple
+    ingress:
+      external: false
+      targetPort: 8000
+      transport: http
+      allowInsecure: false
+      traffic:
+        - revisionName: <revision-name-placeholder>
+          weight: 100
+    registries:
+      - server: <registry-login-server-placeholder>
+        identity: "/subscriptions/<subscription-id-placeholder>/resourceGroups/<resource-group-placeholder>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name-placeholder>"
+    secrets:
+      - name: capstone-auth-token
+        keyVaultUrl: "https://<key-vault-name-placeholder>.vault.azure.net/secrets/capstone-auth-token"
+        identity: "/subscriptions/<subscription-id-placeholder>/resourceGroups/<resource-group-placeholder>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name-placeholder>"
+      - name: openai-api-key
+        keyVaultUrl: "https://<key-vault-name-placeholder>.vault.azure.net/secrets/openai-api-key"
+        identity: "/subscriptions/<subscription-id-placeholder>/resourceGroups/<resource-group-placeholder>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name-placeholder>"
+  template:
+    revisionSuffix: "rev-<image-digest-short-placeholder>-<corpus-manifest-short-placeholder>"
+    containers:
+      - name: capstone
+        image: "<registry-login-server-placeholder>/responsible-ai-capstone@sha256:<image-digest-placeholder>"
+        env:
+          - name: CAPSTONE_AUTH_ENABLED
+            value: "true"
+          - name: CAPSTONE_AUTH_TOKEN
+            secretRef: capstone-auth-token
+          - name: CAPSTONE_CORPUS_DIR
+            value: /service/data/documents
+          - name: CAPSTONE_CORPUS_MANIFEST_PATH
+            value: /service/data/corpus_manifest.json
+          - name: CAPSTONE_STATIC_DIR
+            value: /service/app/static
+          - name: CAPSTONE_CORPUS_VERSION
+            value: <corpus-version-placeholder>
+          - name: CAPSTONE_CORPUS_MANIFEST_SHA256
+            value: <corpus-manifest-sha256-placeholder>
+          - name: CAPSTONE_INDEX_VERSION
+            value: tfidf-markdown-v1
+          - name: CAPSTONE_RATE_LIMIT_ENABLED
+            value: "true"
+          - name: CAPSTONE_RATE_LIMIT_REQUESTS
+            value: "60"
+          - name: CAPSTONE_RATE_LIMIT_WINDOW_SECONDS
+            value: "60"
+          - name: CAPSTONE_TRUST_PROXY_HEADERS
+            value: "false"
+          - name: OPENAI_API_KEY
+            secretRef: openai-api-key
+          - name: OPENAI_MODEL
+            value: <provider-model-placeholder>
+          - name: OPENAI_BASE_URL
+            value: <provider-base-url-placeholder>
+          - name: CAPSTONE_PROVIDER_ALLOWED_HOSTS
+            value: <provider-host-allowlist-placeholder>
+          - name: PYTHONUNBUFFERED
+            value: "1"
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        probes:
+          - type: Startup
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          - type: Liveness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          - type: Readiness
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+    scale:
+      minReplicas: 1
+      maxReplicas: 3
+      rules:
+        - name: http-concurrency
+          http:
+            metadata:
+              concurrentRequests: "50"

@@ -15,6 +15,8 @@ def disable_external_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("CAPSTONE_PROVIDER_ALLOWED_HOSTS", raising=False)
+    monkeypatch.delenv("OPENAI_ALLOWED_HOSTS", raising=False)
 
 
 def test_health_and_readiness() -> None:
@@ -128,6 +130,80 @@ def test_malformed_provider_payload_falls_back(
     assert response.json()["evidence"]
 
 
+def test_provider_endpoint_rejects_cleartext_before_network_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://api.openai.com/v1")
+    monkeypatch.setenv("CAPSTONE_PROVIDER_ALLOWED_HOSTS", "api.openai.com")
+    called = False
+
+    def should_not_run(*_args: object, **_kwargs: object) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(service_module, "urlopen", should_not_run)
+    response = client.post("/ask", json={"question": "What belongs in an approval record?"})
+
+    assert response.status_code == 200
+    assert response.json()["fallback"] is True
+    assert called is False
+
+
+def test_provider_endpoint_requires_an_exact_allowlisted_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://not-allowed.example/v1")
+    monkeypatch.setenv("CAPSTONE_PROVIDER_ALLOWED_HOSTS", "approved.example")
+    called = False
+
+    def should_not_run(*_args: object, **_kwargs: object) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(service_module, "urlopen", should_not_run)
+    response = client.post("/ask", json={"question": "What belongs in an approval record?"})
+
+    assert response.status_code == 200
+    assert response.json()["fallback"] is True
+    assert called is False
+
+
+def test_provider_endpoint_allows_a_configured_https_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://approved.example/v1")
+    monkeypatch.setenv("CAPSTONE_PROVIDER_ALLOWED_HOSTS", "approved.example")
+    requested: list[str] = []
+
+    class MalformedResponse:
+        def __enter__(self) -> "MalformedResponse":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        @staticmethod
+        def read(*_args: object) -> bytes:
+            return b"{}"
+
+    def capture(request: object, **_kwargs: object) -> MalformedResponse:
+        requested.append(request.full_url)
+        return MalformedResponse()
+
+    monkeypatch.setattr(service_module, "urlopen", capture)
+    response = client.post("/ask", json={"question": "What belongs in an approval record?"})
+
+    assert response.status_code == 200
+    assert response.json()["fallback"] is True
+    assert requested == ["https://approved.example/v1/chat/completions"]
+
+
 def test_provider_answer_without_citation_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("OPENAI_MODEL", "test-model")
@@ -156,6 +232,24 @@ def test_provider_answer_that_is_only_a_citation_falls_back(
     assert response.status_code == 200
     assert response.json()["mode"] == "evidence-only"
     assert response.json()["fallback"] is True
+
+
+def test_structural_citation_gate_rejects_an_uncited_segment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+
+    def uncited_segment(_question: str, evidence: list[object]) -> str:
+        return f"The review is documented {evidence[0].citation}. The system is always safe."
+
+    monkeypatch.setattr(api.service, "_llm_answer", uncited_segment)
+    response = client.post("/ask", json={"question": "What belongs in an approval record?"})
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "evidence-only"
+    assert response.json()["fallback"] is True
+    assert "The system is always safe" not in response.json()["answer"]
 
 
 def test_untrusted_provider_citation_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -190,6 +284,24 @@ def test_instruction_like_provider_output_falls_back(monkeypatch: pytest.MonkeyP
     assert response.status_code == 200
     assert response.json()["mode"] == "evidence-only"
     assert response.json()["fallback"] is True
+
+
+def test_multiline_retrieved_provider_answer_can_be_used(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+
+    def multiline_answer(_question: str, evidence: list[object]) -> str:
+        return f"First line\r\nsecond line {evidence[0].citation}."
+
+    monkeypatch.setattr(api.service, "_llm_answer", multiline_answer)
+    response = client.post("/ask", json={"question": "What belongs in an approval record?"})
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "llm"
+    assert response.json()["fallback"] is False
+    assert "\r" not in response.json()["answer"]
 
 
 def test_retrieved_provider_citation_can_be_used(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,0 +1,5 @@
+* text=auto
+
+data/corpus_manifest.json text eol=lf
+data/corpus_manifest.sha256 text eol=lf
+data/documents/*.md text eol=lf

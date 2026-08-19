@@ -12,6 +12,8 @@ class Metrics:
     errors: int = 0
     no_evidence: int = 0
     llm_fallbacks: int = 0
+    authentication_failures: int = 0
+    rate_limited: int = 0
     total_latency_ms: float = 0.0
 
     def __post_init__(self) -> None:
@@ -32,6 +34,16 @@ class Metrics:
             self.no_evidence += int(no_evidence)
             self.llm_fallbacks += int(llm_fallback)
 
+    def record_rejection(
+        self,
+        *,
+        authentication_failure: bool = False,
+        rate_limited: bool = False,
+    ) -> None:
+        with self._lock:
+            self.authentication_failures += int(authentication_failure)
+            self.rate_limited += int(rate_limited)
+
     def prometheus(self) -> str:
         with self._lock:
             average = self.total_latency_ms / self.requests if self.requests else 0.0
@@ -50,6 +62,14 @@ class Metrics:
                     "evidence-only mode.",
                     "# TYPE capstone_llm_fallbacks_total counter",
                     f"capstone_llm_fallbacks_total {self.llm_fallbacks}",
+                    "# HELP capstone_authentication_failures_total Requests rejected by "
+                    "authentication.",
+                    "# TYPE capstone_authentication_failures_total counter",
+                    f"capstone_authentication_failures_total {self.authentication_failures}",
+                    "# HELP capstone_rate_limited_total Requests rejected by the local "
+                    "rate limiter.",
+                    "# TYPE capstone_rate_limited_total counter",
+                    f"capstone_rate_limited_total {self.rate_limited}",
                     "# HELP capstone_request_latency_ms_average Average request latency.",
                     "# TYPE capstone_request_latency_ms_average gauge",
                     f"capstone_request_latency_ms_average {average:.3f}",

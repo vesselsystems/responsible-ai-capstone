@@ -1,5 +1,6 @@
 services:
   capstone:
+    image: ${CAPSTONE_IMAGE:-responsible-ai-capstone:local}
     build:
       context: .
     ports:
@@ -7,12 +8,32 @@ services:
     environment:
       # The image contains these directories outside the installed Python package.
       CAPSTONE_CORPUS_DIR: /service/data/documents
+      CAPSTONE_CORPUS_MANIFEST_PATH: /service/data/corpus_manifest.json
       CAPSTONE_STATIC_DIR: /service/app/static
+      # Authentication is disabled for the loopback-only local default. If enabled,
+      # inject CAPSTONE_AUTH_TOKEN from a secret manager; do not put it in this file.
+      CAPSTONE_AUTH_ENABLED: ${CAPSTONE_AUTH_ENABLED:-false}
+      CAPSTONE_AUTH_TOKEN: ${CAPSTONE_AUTH_TOKEN:-}
+      CAPSTONE_RATE_LIMIT_ENABLED: ${CAPSTONE_RATE_LIMIT_ENABLED:-true}
+      CAPSTONE_RATE_LIMIT_REQUESTS: ${CAPSTONE_RATE_LIMIT_REQUESTS:-60}
+      CAPSTONE_RATE_LIMIT_WINDOW_SECONDS: ${CAPSTONE_RATE_LIMIT_WINDOW_SECONDS:-60}
+      CAPSTONE_TRUST_PROXY_HEADERS: ${CAPSTONE_TRUST_PROXY_HEADERS:-false}
+      CAPSTONE_TRUSTED_PROXY_CIDRS: ${CAPSTONE_TRUSTED_PROXY_CIDRS:-}
+      CAPSTONE_PROVIDER_ALLOWED_HOSTS: ${CAPSTONE_PROVIDER_ALLOWED_HOSTS:-api.openai.com}
+      CAPSTONE_CORPUS_VERSION: ${CAPSTONE_CORPUS_VERSION:-corpus-v1}
+      CAPSTONE_CORPUS_MANIFEST_SHA256: ${CAPSTONE_CORPUS_MANIFEST_SHA256:-b137780a7e9a62e59fbb196c309dfff86fde30817797372470580237f441c532}
+      CAPSTONE_INDEX_VERSION: ${CAPSTONE_INDEX_VERSION:-tfidf-markdown-v1}
       # Optional provider settings. Compose does not require a local .env file.
+      # In a deployment these values should be secret-manager references/injections.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
     # Local-only hardening; the prototype does not need to write to its image.
+    init: true
+    restart: "no"
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
     read_only: true
     tmpfs:
       - /tmp

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "corpus_id": "responsible-ai-capstone-demo",
+  "corpus_version": "corpus-v1",
+  "index_version": "tfidf-markdown-v1",
+  "documents": [
+    {
+      "path": "documents/capstone_governance.md",
+      "sha256": "7060c3f0398cbc5110527a592c5d0006ebe6b6562e7b956a8d623c4a8b0056b4"
+    },
+    {
+      "path": "documents/capstone_incident_response.md",
+      "sha256": "f007acdf1a7b04c40de0b7185a2255e56bfdfed6ad1a50c3bdde212723dd80c3"
+    }
+  ]
+}

@@ -6,7 +6,13 @@ import argparse
 import os
 from pathlib import Path
 
-PROVIDER_VARIABLES = ("OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL")
+PROVIDER_VARIABLES = (
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "OPENAI_BASE_URL",
+    "CAPSTONE_PROVIDER_ALLOWED_HOSTS",
+    "OPENAI_ALLOWED_HOSTS",
+)
 UNSAFE_FRONTEND_APIS = ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write")
 
 
