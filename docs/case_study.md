@@ -23,7 +23,7 @@ The measured checks in this checkout are limited to behavior, a small labeled re
 - An unknown question: HTTP 200 with zero evidence items and the explicit no-evidence answer.
 - An extra request field: HTTP 422. The frontend: HTTP 200 with DOM text APIs and no listed unsafe HTML API.
 - Provider calls in that check: 0. It did not measure an external provider; the latency value is one in-process local observation, not a representative baseline.
-- `pytest -q`: passed locally; the run emitted one deprecation warning from the installed Starlette/httpx test-client dependency. The exact test count is intentionally not repeated here because it changes as coverage evolves.
+- `pytest -q`: passed locally with no deprecation warnings in the current Starlette/httpx environment; a prior dependency warning is not reproduced by this checkout. The exact test count is intentionally not repeated here because it changes as coverage evolves.
 - `ruff check .`: passed.
 
 Docker was not run locally because the `docker` command was unavailable in this checkout. The CI workflow defines a container build, non-root assertion, readiness/health checks, and an evidence-only `/ask` smoke request; this repository does not claim that CI or a hosted environment has run.
